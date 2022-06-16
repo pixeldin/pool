@@ -1,13 +1,9 @@
 # pool
-Simple implementation of a tcp connection pool using the Go standard library.
-
-## Chinese Version 
-[中文文档](README-CH.md)
-
+使用Go原生库简单实现一个tcp连接池。
 
 ```
 /*
-  pool behavior
+	pool 具备行为
 */
 type IPool interface {
     Close() error
@@ -16,19 +12,20 @@ type IPool interface {
 }
 ```
 
-## Demo
+## 示例Demo
 
-### Start listening
+### 启动服务器
 ```
 func TestListenAndServer(t *testing.T) {
     ListenAndServer()
 }
 ```
 
-### init pool and post request concurrently
+### 创建连接池并发起请求
 ```
 var opt = &Option{
     addr: "127.0.0.1:3000",
+    // 初始化5个连接
     size:        5,
     readTimeout: 30 * time.Second,
     dialTimeout: 5 * time.Second,
@@ -46,6 +43,7 @@ func TestNewPool(t *testing.T) {
             if err := SendInPool(pool, "Uid-"+strconv.Itoa(id)); err != nil {
                 log.Print("Send in pool err: ", err)
             }
+            // 注意闭包的id传入值
         }(i)
     }
 

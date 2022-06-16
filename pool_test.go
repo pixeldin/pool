@@ -10,8 +10,7 @@ import (
 )
 
 var opt = &Option{
-	addr: "127.0.0.1:3000",
-	// 初始化5个连接
+	addr:        "127.0.0.1:3000",
 	size:        5,
 	readTimeout: 30 * time.Second,
 	dialTimeout: 5 * time.Second,
@@ -29,7 +28,6 @@ func TestNewPool(t *testing.T) {
 			if err := SendInPool(pool, "Uid-"+strconv.Itoa(id)); err != nil {
 				log.Print("Send in pool err: ", err)
 			}
-			// 注意闭包的id传入值
 		}(i)
 	}
 

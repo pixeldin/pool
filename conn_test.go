@@ -44,7 +44,7 @@ func TestSendMsg(t *testing.T) {
 	//	t.Logf("rec2: %+v", <-rec2)
 	//}
 
-	// 超时判断
+	// timeout judgment
 	rec3, err := c.Send(context.Background(), msg)
 	if err == nil {
 		select {

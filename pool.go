@@ -17,20 +17,19 @@ type Option struct {
 
 type Pool struct {
 	*Option
-	idle    *list.List  // 空闲队列(双向)链表
-	actives int         // 总连接数
-	mtx     *sync.Mutex // 同步锁
-	cond    *sync.Cond  // 用于阻塞/唤醒
+	idle    *list.List // idle doubly linked list
+	actives int        // total connection count
+	mtx     *sync.Mutex
+	cond    *sync.Cond
 }
 
-// NewPool 创建连接池,初始化连接队列,更新队列大小
+// NewPool initialization of the pool queue
 func NewPool(opt *Option) (p *Pool, err error) {
 	idle := list.New()
 	var conn *Conn
 	for i := 0; i < opt.size; i++ {
 		conn, err = NewConn(opt)
 		if err == nil {
-			// 加入队列
 			idle.PushBack(conn)
 		}
 		// whether close all idle conn when one of err occurs?
@@ -50,28 +49,28 @@ func NewPool(opt *Option) (p *Pool, err error) {
 }
 
 /*
-	Get 获取连接:
-	空闲列表是否有库存:
-		- 没有
-			- 连接数是否达到上限
-				- 是, 解锁, 阻塞等待唤醒
-				- 否, 创建连接
-		- 从队头出队获取
+	Get() :
+	Is the free list in idle queue:
+		- no
+			- Whether the number of connections has reached the upper limit
+				- yes, unlocked, blocked waiting to wake up
+				- no, Create a connection
+		- pop from head of the queue
 */
 func (p *Pool) Get() (c *Conn, err error) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	// 如果当前活跃大于限制数量, 阻塞等待
+	// If the current activity over the limit number, block and wait
 	for p.idle.Len() == 0 && p.actives >= p.size {
 		log.Print("idle size full, blocking...")
-		// 让出使用权并且释放mutex锁
+		// cancel possessing and release the mutex lock,
+		// it will wake up automatically when the for condition does not hold
 		p.cond.Wait()
 	}
-	// 空闲列表如果有且连接, 则从空闲队头获取
+
 	if p.idle.Len() > 0 {
 		c = p.idle.Remove(p.idle.Front()).(*Conn)
 	} else {
-		// 创建连接
 		c, err = NewConn(p.Option)
 		if err == nil {
 			p.actives++
@@ -81,11 +80,11 @@ func (p *Pool) Get() (c *Conn, err error) {
 }
 
 /*
-  Put() 归还连接
-  - 连接是否异常
-	- 是, 关闭异常连接
-	- 否, 归还连接至队尾
-  - 更新占用连接数, 唤醒等待方
+  Put()
+  - Is the connection alive?
+	- no, close it
+	- yes, return link to end of line
+  - Update the number of occupied connections, wake up the waiting side
 */
 func (p *Pool) Put(c *Conn, err error) {
 	p.mtx.Lock()
@@ -102,17 +101,14 @@ func (p *Pool) Put(c *Conn, err error) {
 	p.cond.Signal()
 }
 
-// Close 遍历链表关闭连接
 func (p *Pool) Close() (err error) {
-	//p.mtx.Lock()
-	//defer p.mtx.Unlock()
 	for n := p.idle.Front(); n == nil; n = n.Next() {
 		n.Value.(*Conn).Close()
 	}
 	return
 }
 
-// Reset 重置连接池
+// Reset the idle list
 func (p *Pool) Reset() {
 	newIdle := list.New()
 	var conn *Conn
